@@ -1,6 +1,24 @@
 <!-- README rule: say what the user can do, give a minimal example, and mention only caveats that change their decision.
      Mechanics go in docs/, rationale in the PR. When behavior changes, edit the existing text instead of appending. -->
 
+# agent-swap
+
+One account switcher for several AI coding agents. Every [claude-swap](https://github.com/realiti4/claude-swap) command works for each product, with the product name in front:
+
+```bash
+agent-swap claude switch        # rotate Claude Code to the next account
+agent-swap codex switch         # rotate Codex to the next account (1 -> 2 -> 3 -> 1)
+agent-swap codex switch work    # by number, alias or email
+agent-swap codex list           # Codex accounts with 5h and 7d usage
+agent-swap list                 # every product's accounts
+```
+
+In a terminal, every switch ends with that product's account list. `claude-swap` and `cswap` still work as `agent-swap claude`. Supported now: `claude`, `codex`. The Codex commands and what they do differently are in [docs/codex.md](docs/codex.md).
+
+Install with `uv tool install git+https://github.com/lekandigital/agent-swap`; `agent-swap upgrade` reinstalls the latest.
+
+The rest of this README is claude-swap's, and applies to `agent-swap claude`.
+
 # claude-swap
 
 Multi-account switcher for Claude Code. Easily switch between multiple Claude accounts without logging out, or let it switch for you before you hit a rate limit. Track usage for every account in a live dashboard, and run accounts in parallel. Works with both the Claude Code CLI and the VS Code extension.
