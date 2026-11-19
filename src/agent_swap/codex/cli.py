@@ -260,14 +260,7 @@ def _usage_lines(view: UsageView | None) -> list[str]:
         return []
     out: list[str] = []
     if view.usage and not view.stale:
-        extra: tuple[tuple[str, str], ...] = ()
-        credits = view.usage.get("reset_credits")
-        if credits:
-            noun = "credit" if credits == 1 else "credits"
-            extra = (("resets", f"{credits} reset {noun} available"),)
-        lines = _format_usage_lines(view.usage, view.fetched_at, extra_rows=extra)
-        if view.usage.get("limit_reached") and lines:
-            lines[0] += f"  {yellowed('(limit reached)')}"
+        lines = _format_usage_lines(view.usage, view.fetched_at)
         return [f"{dimmed('└' if i == len(lines) - 1 else '├')} {muted(line)}" for i, line in enumerate(lines)]
     detail = ERROR_NOTES.get(view.error or "", view.error or "")
     if view.error == "api-key":
@@ -299,6 +292,13 @@ def render_list(seq: Sequence, views: dict[int, UsageView]) -> None:
         plan = _plan_label(account.plan)
         if plan:
             markers += f" {muted('·')} {muted(plan)}"
+        view = views.get(account.slot)
+        current = view.usage if view and view.usage and not view.stale else {}
+        credits = current.get("reset_credits")
+        if credits:
+            markers += f" {muted('·')} {muted(str(credits) + (' reset credit' if credits == 1 else ' reset credits'))}"
+        if current.get("limit_reached"):
+            markers += f" {yellowed('(limit reached)')}"
         print(f"  {account.slot}: {label}{markers}")
         for line in _usage_lines(views.get(account.slot)):
             print(f"     {line}")
