@@ -14,7 +14,8 @@ from typing import Any, Callable
 
 from claude_swap.fsutil import atomic_write_text, make_dir_link, make_file_link
 from claude_swap.printer import accent, bold_accent, bolded, dimmed, format_age, muted, warning, yellowed
-from claude_swap.switcher import _format_usage_lines
+from claude_swap.oauth import fresh_reset_strings
+from claude_swap.switcher import _pace_marker
 
 from agent_swap.codex import daemon, usage as usage_mod
 from agent_swap.codex.auth import CodexAuth, InvalidAuth, api_key_auth, parse_auth
@@ -255,12 +256,34 @@ def collect_usage(
 # ── rendering ────────────────────────────────────────────────────────────
 
 
+def _left_lines(usage: dict, fetched_at: float | None) -> list[str]:
+    """claude-swap's window rows, but with the percentage LEFT in each window.
+
+    The pace marker still reads the used percentage: "(ahead of pace)" means
+    the week is being spent faster than it passes.
+    """
+    lines = []
+    for label, window in (("5h", usage.get("five_hour")), ("7d", usage.get("seven_day"))):
+        if not window:
+            continue
+        used = window.get("pct")
+        left = f"{max(0.0, 100.0 - used):>3.0f}% left" if isinstance(used, (int, float)) else "  ? left"
+        marker = _pace_marker(window, fetched_at) if label == "7d" else ""
+        cell = fresh_reset_strings(window)
+        if cell:
+            countdown, clock = cell
+            lines.append(f"{label}: {left}   resets {clock:<12}  in {countdown}{marker}")
+        else:
+            lines.append(f"{label}: {left}{marker}")
+    return lines
+
+
 def _usage_lines(view: UsageView | None) -> list[str]:
     if view is None:
         return []
     out: list[str] = []
     if view.usage and not view.stale:
-        lines = _format_usage_lines(view.usage, view.fetched_at)
+        lines = _left_lines(view.usage, view.fetched_at)
         return [f"{dimmed('└' if i == len(lines) - 1 else '├')} {muted(line)}" for i, line in enumerate(lines)]
     detail = ERROR_NOTES.get(view.error or "", view.error or "")
     if view.error == "api-key":
@@ -270,7 +293,7 @@ def _usage_lines(view: UsageView | None) -> list[str]:
         room = usage_mod.headroom(view.usage)
         if room is not None and view.fetched_at:
             out.append(
-                f"{dimmed('└')} {muted(f'last seen {100 - room:.0f}% used · ' + format_age(int(view.fetched_at * 1000)))}"
+                f"{dimmed('└')} {muted(f'last seen {room:.0f}% left · ' + format_age(int(view.fetched_at * 1000)))}"
             )
     return out
 
@@ -309,7 +332,9 @@ def render_list(seq: Sequence, views: dict[int, UsageView]) -> None:
 def _window_json(window: dict | None) -> dict | None:
     if not window:
         return None
-    return {"pct": window.get("pct"), "resetsAt": window.get("resets_at")}
+    used = window.get("pct")
+    left = max(0.0, 100.0 - used) if isinstance(used, (int, float)) else None
+    return {"pct": used, "pctLeft": left, "resetsAt": window.get("resets_at")}
 
 
 def account_json(account: Account, active: int | None, view: UsageView | None) -> dict[str, Any]:

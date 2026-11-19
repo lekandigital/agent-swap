@@ -300,6 +300,18 @@ def test_inactive_expired_login_is_renewed_but_the_active_one_never_is(env):
     assert views[1].usage and views[2].usage
 
 
+def test_list_shows_the_percentage_left_in_each_window(env, capsys):
+    store, live = env
+    seed(store, live, ["a@example.com"], active=1)
+    reading = {"five_hour": {"pct": 36, "resets_at": None}, "seven_day": {"pct": 100, "resets_at": None}}
+    views = codex_cli.collect_usage(store, store.load(), fetch=lambda a: reading)
+    codex_cli.render_list(store.load(), views)
+    out = capsys.readouterr().out
+    assert "5h:  64% left" in out and "7d:   0% left" in out
+    payload = codex_cli.list_payload(store.load(), views)
+    assert payload["accounts"][0]["usage"]["fiveHour"] == {"pct": 36, "pctLeft": 64, "resetsAt": None}
+
+
 def test_failed_fetch_falls_back_to_the_last_good_reading(env):
     store, live = env
     seed(store, live, ["a@example.com"], active=1)
